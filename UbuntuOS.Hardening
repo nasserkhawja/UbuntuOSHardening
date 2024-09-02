@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# This script performs basic hardening of an Ubuntu OS.
+# Please review each step and adjust according to your security policy.
+
+echo "Starting Ubuntu OS hardening..."
+
+# 1. Update the system
+echo "Updating the system..."
+apt-get update && apt-get upgrade -y
+
+# 2. Install and configure a firewall (UFW - Uncomplicated Firewall)
+echo "Installing and configuring UFW..."
+apt-get install -y ufw
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow OpenSSH
+ufw enable
+
+# 3. Disable unused services
+echo "Disabling unused services..."
+systemctl disable telnet.socket
+systemctl stop telnet.socket
+systemctl disable ftp.socket
+systemctl stop ftp.socket
+
+# 4. Set up fail2ban to protect SSH
+echo "Installing and configuring fail2ban..."
+apt-get install -y fail2ban
+systemctl enable fail2ban
+systemctl start fail2ban
+cat <<EOL > /etc/fail2ban/jail.local
+[sshd]
+enabled = true
+port = ssh
+logpath = /var/log/auth.log
+maxretry = 5
+EOL
+
+# 5. Configure password policies
+echo "Configuring password policies..."
+cat <<EOL >> /etc/login.defs
+PASS_MAX_DAYS   90
+PASS_MIN_DAYS   7
+PASS_MIN_LEN    8
+PASS_WARN_AGE   7
+EOL
+
+# 6. Disable root login via SSH
+echo "Disabling root login via SSH..."
+sed -i 's/^PermitRootLogin .*/PermitRootLogin no/' /etc/ssh/sshd_config
+systemctl restart ssh
+
+# 7. Install and configure auditd for logging
+echo "Installing and configuring auditd..."
+apt-get install -y auditd
+systemctl enable auditd
+systemctl start auditd
+cat <<EOL > /etc/audit/rules.d/audit.rules
+-w /etc/sudoers -p wa -k scope
+-w /etc/sudoers.d -p wa -k scope
+-w /etc/group -p wa -k scope
+-w /etc/passwd -p wa -k scope
+-w /etc/shadow -p wa -k scope
+-w /var/log/sudo.log -p wa -k scope
+EOL
+
+# 8. Enable AppArmor (Ubuntu's default Mandatory Access Control)
+echo "Enabling and configuring AppArmor..."
+systemctl enable apparmor
+systemctl start apparmor
+
+# 9. Remove unnecessary packages
+echo "Removing unnecessary packages..."
+apt-get autoremove -y
+
+# 10. Verify file permissions
+echo "Verifying file permissions..."
+chmod 700 /root
+chmod 600 /etc/shadow
+
+echo "Ubuntu OS hardening completed."
