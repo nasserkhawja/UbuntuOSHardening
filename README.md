@@ -1,6 +1,6 @@
 # UbuntuServerHardening
 
-The basics of what it does. Keep in mind this disables root via ssh.
+The basics of what it does. This should happen after OS installation and prior to any other package installation. Keep in mind this disables root via ssh.
 
 Update the System
 
